@@ -113,19 +113,19 @@ void fadeToPercentage( int toPercentage ) {
 void updateNodeStatus() {
 
   if (currentAbsolute>0) {
-    Homie.setNodeProperty(dimmerNode, "switch", "ON");
+    dimmerNode.setProperty("switch").send("ON");
   } else {
-    Homie.setNodeProperty(dimmerNode, "switch", "OFF");
+    dimmerNode.setProperty("switch").send("OFF");
   }
   String msg;
   msg = currentPercentage;
-  Homie.setNodeProperty(dimmerNode, "percentage", msg );
+  dimmerNode.setProperty("percentage").send(msg);
   msg = currentAbsolute;
-  Homie.setNodeProperty(dimmerNode, "absolute", msg );
+  dimmerNode.setProperty("absolute").send(msg);
   msg = downCounterLimit;
-  Homie.setNodeProperty(dimmerNode, "timer", msg );
+  dimmerNode.setProperty("timer").send(msg);
   msg = EEpromData.dimMode;
-  Homie.setNodeProperty(dimmerNode, "dimMode", msg);
+  dimmerNode.setProperty("dimMode").send(msg);
 
 }
 
@@ -136,7 +136,7 @@ void handlerSetup() {
   Serial.println("setup via handler");
   String msg;
   msg = initDetecorVal;
-  Homie.setNodeProperty(dimmerNode, "starterStatus", msg);
+  dimmerNode.setProperty("starterStatus").send(msg);
   updateNodeStatus();
 }
 
@@ -163,7 +163,7 @@ void handlerLoop() {
       Serial.println(voltage);
       String msg;
       msg = voltage;
-      Homie.setNodeProperty(lightSensorNode, "value", msg);
+      lightSensorNode.setProperty("value").send(msg);
     }
   }
 }
@@ -171,7 +171,7 @@ void handlerLoop() {
 /*
  * MQTT event processing - dimmer value request percentage
  */
-bool handlerDimmerPerc(String message) {
+bool handlerDimmerPerc(const HomieRange& range, String message) {
   int requestedPercentage;
   if (message.toInt() > 0)  {
     downCounterLimit = 0;
@@ -195,7 +195,7 @@ bool handlerDimmerPerc(String message) {
 /*
  * MQTT event processing - dimmer value request absolute
  */
-bool handlerDimmerAbs(String message) {
+bool handlerDimmerAbs(const HomieRange& range, String message) {
   int requestedAbsolute;
   if (message.toInt() > 0) {
     downCounterLimit = 0;
@@ -219,21 +219,21 @@ bool handlerDimmerAbs(String message) {
 /*
  * MQTT event processing - analog write freqency of Soft PWM
  */
-bool dimmerHandlerFreq(String message) {
+bool dimmerHandlerFreq(const HomieRange& range, String message) {
   int requestedFreq;
   if (message.toInt() >= 200) {
     requestedFreq = message.toInt();
     analogWriteFreq(requestedFreq);
     String msg;
     msg = requestedFreq;
-    Homie.setNodeProperty(dimmerNode, "frequency", msg );
+    dimmerNode.setProperty("frequency").send(msg);
   }
 }
 
 /*
  * MQTT event processing - ON/OFF switch request
  */
-bool handlerSwitch(String message) {
+bool handlerSwitch(const HomieRange& range, String message) {
    if (message=="ON") {
      downCounterLimit = 0;
      fadeToPercentage( 100 );
@@ -252,7 +252,7 @@ bool handlerSwitch(String message) {
 /*
  * MQTT event processing - timer Request
  */
-bool handlerTimer(String message) {
+bool handlerTimer(const HomieRange& range, String message) {
    if (message.toInt() > 0) {
      if (currentPercentage == 0) {
        fadeToPercentage( 100 );
@@ -267,7 +267,7 @@ bool handlerTimer(String message) {
 /*
  * MQTT event processing - mode Command
  */
-bool handlerDimMode(String message) {
+bool handlerDimMode(const HomieRange& range, String message) {
   if (message.toInt() > 0) {
     EEpromData.dimMode = message.toInt();
     EEPROM.put(0, EEpromData);
@@ -275,7 +275,7 @@ bool handlerDimMode(String message) {
 
     String msg;
     msg = EEpromData.dimMode;
-    Homie.setNodeProperty(dimmerNode, "dimMode", msg);
+    dimmerNode.setProperty("dimMode").send(msg);
     return true;
   }
   return false;
@@ -363,20 +363,20 @@ void setup() {
 
   Serial.println("start init homie");
   /* Initiate homie object */
-  Homie.setFirmware("LED-dimmer", "1.0.56");
-  Homie.setBrand("MyIOT");
-  Homie.enableBuiltInLedIndicator(false);
+  Homie_setFirmware("LED-dimmer", "1.0.56");
+  Homie_setBrand("MyIOT");
+  //Homie.enableBuiltInLedIndicator(false); michał
   Homie.setSetupFunction(handlerSetup);
   Homie.setLoopFunction(handlerLoop);
-  Homie.enableLogging(false);
+//  Homie.enableLogging(false); michał
 //  dimmerNode.subscribe("frequency", dimmerHandlerFreq);
-  dimmerNode.subscribe("absolute", handlerDimmerAbs);
-  dimmerNode.subscribe("percentage", handlerDimmerPerc);
-  dimmerNode.subscribe("switch", handlerSwitch);
-  dimmerNode.subscribe("timer", handlerTimer);
-  dimmerNode.subscribe("dimMode", handlerDimMode);
-  Homie.registerNode(dimmerNode);
-  Homie.registerNode(lightSensorNode);
+  dimmerNode.advertise("absolute").settable(handlerDimmerAbs);
+  dimmerNode.advertise("percentage").settable(handlerDimmerPerc);
+  dimmerNode.advertise("switch").settable(handlerSwitch);
+  dimmerNode.advertise("timer").settable(handlerTimer);
+  dimmerNode.advertise("dimMode").settable(handlerDimMode);
+//  Homie.registerNode(dimmerNode);
+//  Homie.registerNode(lightSensorNode);
   Homie.setup();
 }
 
